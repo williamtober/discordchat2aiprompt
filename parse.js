@@ -1,7 +1,5 @@
 const fs = require('fs');
-// get json file in directory and parse it
-
-const { json } = require('stream/consumers');
+require('dotenv').config();
 
 // return json object
 function getJsonFile() {
@@ -22,6 +20,7 @@ function getJsonFile() {
 }
 
 const data = getJsonFile();
+console.log(process.env.prompter, process.env.responder)
 
 // define the sender
 const prompter = (process.env.prompter).toLowerCase()
@@ -30,59 +29,56 @@ const responder = (process.env.responder).toLowerCase();
 // variables to hold prompts that have been sent over multiple messages before a response is recieved
 let prompt = '';
 let response = ''; // stores responses that are multiple messages long
-/* SAMPLE PROMPT
-{
-    "id": "275124495616835585",
-    "type": "Default",
-    "timestamp": "2017-01-29T04:46:31.321+00:00",
-    "timestampEdited": null,
-    "callEndedTimestamp": null,
-    "isPinned": false,
-    "content": "send me invite to discord room",
-    "author": {
-      "id": "180861978271547392",
-      "name": "user",
-      "discriminator": "0069",
-      "nickname": "user",
-      "color": null,
-      "isBot": false,
-      "avatarUrl": "https://cdn.discordapp.com/avatars/180861978271547392/e18812bcfe00a393188d53182631aa14.png?size=512"
-    },
-    "attachments": [],
-    "embeds": [],
-    "stickers": [],
-    "reactions": [],
-    "mentions": []
-  },
-*/
 
 // variable to hold training data
 let trainingData = [];
+let count = 0;
+data.messages.forEach(message => {
+    count++
+    console.clear()
+    console.log(count)
+    // people sometimes press enter and leave a blank message, lets ignore those
+    if (message.content == '') {
+        // skip this message
+        return;
+    }
 
-json.messages.forEach(message => {
+    // people sometimes send gifs, lets ignore every url that isnt "tenor" "giphy" "discord" or "imgur"
+    if (message.content.includes('http')) {
+        // see if the url is from tenor, giphy, discord, or imgur
+        if (!message.content.includes('tenor') && !message.content.includes('giphy') && !message.content.includes('discord') && !message.content.includes('imgur')) {
+            // skip this message
+            return;
+        }
+    }
     
-
     // if the message is sent by the prompter
-    if (message.author.name.toLowerCase() === prompter) {
+    if (message.author.name.toLowerCase() == prompter) {
         // if the last message was a response, and this message is a response then add the previous prompt and response to the training data
-        if (response !== '') {
+        prompt = message.content;
+    } else if (message.author.name.toLowerCase() == responder) {
+        // if the prompt is empty, then skip this message
+        if (prompt == '') {
+            return; 
+        }
+
+        // if the last message was a prompt, and this message is a response then add the previous prompt and response to the training data
+        if (prompt != '') {
+            // add the prompt and response to the training data
             trainingData.push({
                 prompt: prompt,
-                response: response
+                completion: message.content
             });
+            // console.log({
+            //     input: prompt,
+            //     completion: message.content
+            // })
             // reset the prompt and response
             prompt = '';
             response = '';
         } else {
-            // if the last message was a prompt, and this message is a prompt then add the previous prompt
-            prompt = prompt !== '' ? prompt + ' ' + message.content : message.content;
+            response = message.content;
         }
-
-
-    } else if (message.author.name.toLowerCase() === responder) {
-        // if the last message was a prompt, and this message is a response then add the previous prompt and response to the training data
-        response = response !== '' ? response + ' ' + message.content : message.content;
-
     }
 
 });
