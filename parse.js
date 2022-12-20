@@ -93,5 +93,5 @@ fs.writeFile('trainingData.json', JSON.stringify(trainingData), function(err) {
     if (err) {
         console.log(err);
     }
-}
+});
 
